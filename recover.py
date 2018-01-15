@@ -334,7 +334,7 @@ def wif_to_bech32(wif):
     hrp = "tb" if testnet else "bc"
     return segwit_addr.encode(hrp, 0, keyhash)
 
-if __name__ == "__main__":
+def tests():
     seed = mnemonic_to_seed("claim source near salon police abstract seminar chronic creek iron luggage result upgrade motor nature base dawn senior junior twenty taxi sun hat front")
     # Regular hwif
     hwif = seed_to_hwif(seed)
@@ -486,6 +486,7 @@ if __name__ == "__main__":
     assert wif_to_p2wpkh("5J9FKYS8gvp8ivMdANRgBLTMg6idwiEjmW7oRX6s84qHfHv1NCw") == "3B4pjc3Tgf1KsCbmUuYMoaMXwcQJUUYdDQ"
     assert wif_to_p2wpkh("93NhhunuavW1bhqQxPwXonETKwKVjxBbxKK3MZ2veHTnMPKsr66") == "2NBnetKatpDruiyF6fUHFaoEgDkaX5UK54F"
 
+def main():
     testnet = False
     if len(sys.argv) > 1:
         if sys.argv[1] == "testnet" or sys.argv[1] == "-testnet" or sys.argv[1] == "--testnet":
@@ -568,3 +569,7 @@ if __name__ == "__main__":
             key = input("Enter the Ethereum private key: ")
         print()
         print("Ethereum account: {}".format(private_eth_to_public(key)))
+
+if __name__ == "__main__":
+    tests()
+    main()
