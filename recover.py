@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import hmac
 import struct
 import hashlib
@@ -259,16 +260,36 @@ def private_eth_to_public(priv):
     keyhash =  keccak.Keccak256(data).digest()
     return mixed_case_checksum(keyhash[-20:])
 
-def wif_to_p2pkh(wif):
+def wif_to_wif(wif, compressed=None):
     data = b58decode_check(wif)
     prefix, data = data[0:1], data[1:]
     testnet = prefix == b"\xef"
     if not testnet:
         assert prefix == b"\x80"
-    compressed = len(data) == 33
-    if compressed:
+    wif_compressed = len(data) == 33
+    if wif_compressed:
         suffix, data = data[-1], data[:-1]
         assert suffix == 1
+    if compressed is None:
+        compressed = wif_compressed
+    secret_exponent = parse_256(data)
+    prefix = b"\xef" if testnet else b"\x80"
+    data = prefix + ser_256(secret_exponent)
+    if compressed:
+        data += b"\x01"
+    return b58encode_check(data)
+def wif_to_p2pkh(wif, compressed=None):
+    data = b58decode_check(wif)
+    prefix, data = data[0:1], data[1:]
+    testnet = prefix == b"\xef"
+    if not testnet:
+        assert prefix == b"\x80"
+    wif_compressed = len(data) == 33
+    if wif_compressed:
+        suffix, data = data[-1], data[:-1]
+        assert suffix == 1
+    if compressed is None:
+        compressed = wif_compressed
     secret_exponent = parse_256(data)
     public_pair = (ecdsa.generator_secp256k1*secret_exponent).pair()
     if compressed:
@@ -296,6 +317,22 @@ def wif_to_p2wpkh(wif):
     scripthash = hash160(script)
     prefix = b"\xc4" if testnet else b"\x05"
     return b58encode_check(prefix + scripthash)
+def wif_to_bech32(wif):
+    data = b58decode_check(wif)
+    prefix, data = data[0:1], data[1:]
+    testnet = prefix == b"\xef"
+    if not testnet:
+        assert prefix == b"\x80"
+    compressed = len(data) == 33
+    if compressed:
+        suffix, data = data[-1], data[:-1]
+        assert suffix == 1
+    secret_exponent = parse_256(data)
+    public_pair = (ecdsa.generator_secp256k1*secret_exponent).pair()
+    data = ser_p(public_pair)
+    keyhash = hash160(data)
+    hrp = "tb" if testnet else "bc"
+    return segwit_addr.encode(hrp, 0, keyhash)
 
 if __name__ == "__main__":
     seed = mnemonic_to_seed("claim source near salon police abstract seminar chronic creek iron luggage result upgrade motor nature base dawn senior junior twenty taxi sun hat front")
@@ -448,3 +485,86 @@ if __name__ == "__main__":
     assert wif_to_p2wpkh("cVUnfa1d6j93eBEgjWFgyUePCakdraZoH9pdPiPVmZfDAY6JUzVs") == "2NBnetKatpDruiyF6fUHFaoEgDkaX5UK54F"
     assert wif_to_p2wpkh("5J9FKYS8gvp8ivMdANRgBLTMg6idwiEjmW7oRX6s84qHfHv1NCw") == "3B4pjc3Tgf1KsCbmUuYMoaMXwcQJUUYdDQ"
     assert wif_to_p2wpkh("93NhhunuavW1bhqQxPwXonETKwKVjxBbxKK3MZ2veHTnMPKsr66") == "2NBnetKatpDruiyF6fUHFaoEgDkaX5UK54F"
+
+    testnet = False
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "testnet" or sys.argv[1] == "-testnet" or sys.argv[1] == "--testnet":
+            testnet = True
+        else:
+            print("Usage:")
+            print("\t{} [--testnet]".format(sys.argv[0]))
+            sys.exit(1)
+
+    if testnet:
+        print("Testnet mode active.")
+
+    print("1) Enter a BIP39 mnemonic phrase")
+    print("2) Enter a Bitcoin private key")
+    print("3) Enter an Ethereum private key")
+    print("q) Quit")
+    selection = None
+    query = "Please make your selection: "
+    while not selection:
+        selection = input(query)
+        if selection.lower() not in ("q", "1", "2", "3"):
+            query = "Please enter a number 1-3 or q to quit: "
+            selection = None
+
+    if selection == "1":
+        print()
+        phrase = None
+        while not phrase:
+            phrase = input("Please enter your 12 or 24 word recovery phrase: ").lower()
+            words = phrase.split(" ")
+            if len(words) != 12 and len(words) != 24:
+                phrase = None
+                continue
+            is_valid = True
+            for word in words:
+                if word not in BIP39_WORDS:
+                    print("Invalid word in phrase: {}".format(word))
+                    is_valid = False
+            if not is_valid:
+                phrase = None
+        password = input("Please enter the password that protects this recovery phrase (hit enter for no password): ")
+        seed = mnemonic_to_seed(phrase, password)
+        derivation_path = "m/44'/0'/0'/0/0"
+        while True:
+            hwif = hwif_subkey_path(seed_to_hwif(seed, testnet=testnet), derivation_path)
+            print()
+            print("Current derivation path:              {}".format(derivation_path))
+            print("Private BIP32 extended key:           {}".format(hwif))
+            print("Public BIP32 extended key:            {}".format(private_hwif_to_public(hwif)))
+            print("Bitcoin private key (compressed):     {}".format(hwif_to_wif(hwif, compressed=True)))
+            print("Bitcoin private key (uncompressed):   {}".format(hwif_to_wif(hwif, compressed=False)))
+            print("Bitcoin P2PKH address (compressed):   {}".format(hwif_to_p2pkh_address(hwif, compressed=True)))
+            print("Bitcoin P2PKH address (uncompressed): {}".format(hwif_to_p2pkh_address(hwif, compressed=False)))
+            print("Bitcoin P2SH-P2WPKH address:          {}".format(hwif_to_p2wpkh_address(hwif)))
+            print("Bitcoin Bech32 address:               {}".format(hwif_to_bech32_address(hwif)))
+            print("Ethereum private key:                 {}".format(hwif_to_eth_privatekey(hwif)))
+            print("Ethereum account:                     {}".format(hwif_to_eth_account(hwif)))
+            print()
+            new_derivation_path = input("Enter a new derivation path or type q to quit: m/")
+            if new_derivation_path.lower() == "q":
+                break
+            elif new_derivation_path != "":
+                derivation_path = "m/" + new_derivation_path
+    elif selection == "2":
+        print()
+        key = None
+        while not key:
+            key = input("Enter the compressed or uncompressed Bitcoin private key: ")
+        print()
+        print("Bitcoin private key (compressed):     {}".format(wif_to_wif(key, compressed=True)))
+        print("Bitcoin private key (uncompressed):   {}".format(wif_to_wif(key, compressed=False)))
+        print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(key, compressed=True)))
+        print("Bitcoin P2PKH address (uncompressed): {}".format(wif_to_p2pkh(key, compressed=False)))
+        print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(key)))
+        print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(key)))
+    elif selection == "3":
+        print()
+        key = None
+        while not key:
+            key = input("Enter the Ethereum private key: ")
+        print()
+        print("Ethereum account: {}".format(private_eth_to_public(key)))
