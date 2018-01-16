@@ -4,6 +4,7 @@ import sys
 import hmac
 import struct
 import hashlib
+import secrets
 import unicodedata
 
 import keccak
@@ -502,13 +503,14 @@ def main():
     print("1) Enter a BIP39 mnemonic phrase")
     print("2) Enter a Bitcoin private key")
     print("3) Enter an Ethereum private key")
+    print("4) Generate a Bitcoin account")
     print("q) Quit")
     selection = None
     query = "Please make your selection: "
     while not selection:
         selection = input(query)
-        if selection.lower() not in ("q", "1", "2", "3"):
-            query = "Please enter a number 1-3 or q to quit: "
+        if selection.lower() not in ("q", "1", "2", "3", "4"):
+            query = "Please enter a number 1-4 or q to quit: "
             selection = None
 
     if selection == "1":
@@ -552,16 +554,16 @@ def main():
                 derivation_path = "m" + new_derivation_path
     elif selection == "2":
         print()
-        key = None
-        while not key:
-            key = input("Enter the compressed or uncompressed Bitcoin private key: ")
+        wif = None
+        while not wif:
+            wif = input("Enter the compressed or uncompressed Bitcoin private key: ")
         print()
-        print("Bitcoin private key (compressed):     {}".format(wif_to_wif(key, compressed=True)))
-        print("Bitcoin private key (uncompressed):   {}".format(wif_to_wif(key, compressed=False)))
-        print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(key, compressed=True)))
-        print("Bitcoin P2PKH address (uncompressed): {}".format(wif_to_p2pkh(key, compressed=False)))
-        print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(key)))
-        print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(key)))
+        print("Bitcoin private key (compressed):     {}".format(wif_to_wif(wif, compressed=True)))
+        print("Bitcoin private key (uncompressed):   {}".format(wif_to_wif(wif, compressed=False)))
+        print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(wif, compressed=True)))
+        print("Bitcoin P2PKH address (uncompressed): {}".format(wif_to_p2pkh(wif, compressed=False)))
+        print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(wif)))
+        print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(wif)))
     elif selection == "3":
         print()
         key = None
@@ -569,6 +571,19 @@ def main():
             key = input("Enter the Ethereum private key: ")
         print()
         print("Ethereum account: {}".format(private_eth_to_public(key)))
+    elif selection == "4":
+        secret_exponent = secrets.randbits(256)
+        prefix = b"\xef" if testnet else b"\x80"
+        data = prefix + ser_256(secret_exponent)
+        data += b"\x01"
+        wif = b58encode_check(data)
+        print()
+        print("Bitcoin private key (compressed):     {}".format(wif_to_wif(wif, compressed=True)))
+        print("Bitcoin private key (uncompressed):   {}".format(wif_to_wif(wif, compressed=False)))
+        print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(wif, compressed=True)))
+        print("Bitcoin P2PKH address (uncompressed): {}".format(wif_to_p2pkh(wif, compressed=False)))
+        print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(wif)))
+        print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(wif)))
 
 if __name__ == "__main__":
     tests()
