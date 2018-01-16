@@ -548,7 +548,7 @@ def main():
             new_derivation_path = input("Enter a new derivation path or type q to quit: m/")
             if new_derivation_path.lower() == "q":
                 break
-            elif new_derivation_path != "":
+            else:
                 derivation_path = "m/" + new_derivation_path
     elif selection == "2":
         print()
