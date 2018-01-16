@@ -545,11 +545,11 @@ def main():
             print("Ethereum private key:                 {}".format(hwif_to_eth_privatekey(hwif)))
             print("Ethereum account:                     {}".format(hwif_to_eth_account(hwif)))
             print()
-            new_derivation_path = input("Enter a new derivation path or type q to quit: m/")
+            new_derivation_path = input("Enter a new derivation path or type q to quit: m")
             if new_derivation_path.lower() == "q":
                 break
             else:
-                derivation_path = "m/" + new_derivation_path
+                derivation_path = "m" + new_derivation_path
     elif selection == "2":
         print()
         key = None
