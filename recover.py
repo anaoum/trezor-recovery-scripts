@@ -557,15 +557,8 @@ def main():
             print("Current derivation path:              {}".format(derivation_path))
             print("Private BIP32 extended key:           {}".format(hwif))
             print("Public BIP32 extended key:            {}".format(private_hwif_to_public(hwif)))
-            print("Bitcoin private key (compressed):     {}".format(hwif_to_wif(hwif, compressed=True)))
-            print("Bitcoin private key (uncompressed):   {}".format(hwif_to_wif(hwif, compressed=False)))
-            print("Bitcoin P2PKH address (compressed):   {}".format(hwif_to_p2pkh_address(hwif, compressed=True)))
-            print("Bitcoin P2PKH address (uncompressed): {}".format(hwif_to_p2pkh_address(hwif, compressed=False)))
-            print("Bitcoin P2SH-P2WPKH address:          {}".format(hwif_to_p2wpkh_address(hwif)))
-            print("Bitcoin P2SH-P2WPKH redeem script:    {}".format(wif_to_p2wpkh_redeem_script(hwif_to_wif(hwif))))
-            print("Bitcoin Bech32 address:               {}".format(hwif_to_bech32_address(hwif)))
-            print("Ethereum private key:                 {}".format(hwif_to_eth_privatekey(hwif)))
-            print("Ethereum account:                     {}".format(hwif_to_eth_account(hwif)))
+            show_wif_details(hwif_to_wif(hwif))
+            show_eth_details(hwif_to_eth_privatekey(hwif))
             print()
             new_derivation_path = input("Enter a new derivation path or type q to quit: m")
             if new_derivation_path.lower() == "q":
@@ -585,8 +578,8 @@ def main():
     def show_eth_details(key=None):
         while not key:
             key = input("Enter the Ethereum private key: ")
-        print("Ethereum private key: {}".format(key))
-        print("Ethereum account:     {}".format(private_eth_to_public(key)))
+        print("Ethereum private key:                 {}".format(key))
+        print("Ethereum account:                     {}".format(private_eth_to_public(key)))
 
     print()
 
