@@ -318,6 +318,22 @@ def wif_to_p2wpkh(wif):
     scripthash = hash160(script)
     prefix = b"\xc4" if testnet else b"\x05"
     return b58encode_check(prefix + scripthash)
+def wif_to_p2wpkh_redeem_script(wif):
+    data = b58decode_check(wif)
+    prefix, data = data[0:1], data[1:]
+    testnet = prefix == b"\xef"
+    if not testnet:
+        assert prefix == b"\x80"
+    compressed = len(data) == 33
+    if compressed:
+        suffix, data = data[-1], data[:-1]
+        assert suffix == 1
+    secret_exponent = parse_256(data)
+    public_pair = (ecdsa.generator_secp256k1*secret_exponent).pair()
+    data = ser_p(public_pair)
+    keyhash = hash160(data)
+    script = b"\x00\x14" + keyhash
+    return script.hex()
 def wif_to_bech32(wif):
     data = b58decode_check(wif)
     prefix, data = data[0:1], data[1:]
@@ -546,6 +562,7 @@ def main():
             print("Bitcoin P2PKH address (compressed):   {}".format(hwif_to_p2pkh_address(hwif, compressed=True)))
             print("Bitcoin P2PKH address (uncompressed): {}".format(hwif_to_p2pkh_address(hwif, compressed=False)))
             print("Bitcoin P2SH-P2WPKH address:          {}".format(hwif_to_p2wpkh_address(hwif)))
+            print("Bitcoin P2SH-P2WPKH redeem script:    {}".format(wif_to_p2wpkh_redeem_script(hwif_to_wif(hwif))))
             print("Bitcoin Bech32 address:               {}".format(hwif_to_bech32_address(hwif)))
             print("Ethereum private key:                 {}".format(hwif_to_eth_privatekey(hwif)))
             print("Ethereum account:                     {}".format(hwif_to_eth_account(hwif)))
@@ -563,6 +580,7 @@ def main():
         print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(wif, compressed=True)))
         print("Bitcoin P2PKH address (uncompressed): {}".format(wif_to_p2pkh(wif, compressed=False)))
         print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(wif)))
+        print("Bitcoin P2SH-P2WPKH redeem script:    {}".format(wif_to_p2wpkh_redeem_script(wif)))
         print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(wif)))
     def show_eth_details(key=None):
         while not key:
