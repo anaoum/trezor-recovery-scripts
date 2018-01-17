@@ -503,9 +503,9 @@ def main():
     print("1) Enter a BIP39 mnemonic phrase")
     print("2) Enter a Bitcoin private key")
     print("3) Enter an Ethereum private key")
-    print("4) Generate a Bitcoin account")
-    print("5) Generate an Ethereum account")
-    print("6) Generate a BIP39 mnemonic phrase")
+    print("4) Generate a BIP39 mnemonic phrase")
+    print("5) Generate a Bitcoin private key")
+    print("6) Generate an Ethereum private key")
     print("q) Quit")
     selection = None
     query = "Please make your selection: "
@@ -531,10 +531,13 @@ def main():
                 phrase = None
         password = input("Please enter the password that protects this recovery phrase (hit enter for no password): ")
         seed = mnemonic_to_seed(phrase, password)
+        root_hwif = seed_to_hwif(seed, testnet=testnet)
         derivation_path = "m/44'/0'/0'/0/0"
         while True:
-            hwif = hwif_subkey_path(seed_to_hwif(seed, testnet=testnet), derivation_path)
+            hwif = hwif_subkey_path(root_hwif, derivation_path)
             print()
+            print("Recovery phrase:                      {}".format(phrase))
+            print("Password:                             {}".format(password))
             print("Current derivation path:              {}".format(derivation_path))
             print("Private BIP32 extended key:           {}".format(hwif))
             print("Public BIP32 extended key:            {}".format(private_hwif_to_public(hwif)))
@@ -555,7 +558,6 @@ def main():
     def show_wif_details(wif=None):
         while not wif:
             wif = input("Enter the compressed or uncompressed Bitcoin private key: ")
-        print()
         print("Bitcoin private key (compressed):     {}".format(wif_to_wif(wif, compressed=True)))
         print("Bitcoin private key (uncompressed):   {}".format(wif_to_wif(wif, compressed=False)))
         print("Bitcoin P2PKH address (compressed):   {}".format(wif_to_p2pkh(wif, compressed=True)))
@@ -565,7 +567,6 @@ def main():
     def show_eth_details(key=None):
         while not key:
             key = input("Enter the Ethereum private key: ")
-        print()
         print("Ethereum private key: {}".format(key))
         print("Ethereum account:     {}".format(private_eth_to_public(key)))
 
@@ -578,20 +579,19 @@ def main():
     elif selection == "3":
         show_eth_details()
     elif selection == "4":
+        words = [secrets.choice(BIP39_WORDS) for _ in range(24)]
+        phrase = " ".join(words)
+        show_bip39_details(phrase)
+    elif selection == "5":
         secret_exponent = secrets.randbits(256)
         prefix = b"\xef" if testnet else b"\x80"
         data = prefix + ser_256(secret_exponent)
         data += b"\x01"
         wif = b58encode_check(data)
         show_wif_details(wif)
-    elif selection == "5":
+    elif selection == "6":
         key = ser_256(secrets.randbits(256)).hex()
         show_eth_details(key)
-    elif selection == "6":
-        words = [secrets.choice(BIP39_WORDS) for _ in range(24)]
-        phrase = " ".join(words)
-        print("Your recovery phrase is: {}".format(phrase))
-        show_bip39_details(phrase)
 
 if __name__ == "__main__":
     tests()
