@@ -12,7 +12,7 @@ import ecdsa
 
 # BIP39
 BIP39_WORDS = []
-for line in open("bip0039_wordlist_english.txt", "rU"):
+for line in open("bip0039_wordlist_english.txt", "r"):
     BIP39_WORDS.append(line.strip("\n"))
 def mnemonic_to_seed(mnemonic, password=""):
     mnemonic_norm = unicodedata.normalize("NFKD", mnemonic).lower()
