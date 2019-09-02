@@ -21,6 +21,16 @@ def mnemonic_to_seed(mnemonic, password=""):
     mnemonic_norm = mnemonic_norm.encode("ascii")
     password_norm = unicodedata.normalize("NFKD", password).encode("utf-8")
     return hashlib.pbkdf2_hmac("sha512", mnemonic_norm, b"mnemonic" + password_norm, 2048, 64)
+def generate_mnemonic(strength=256):
+    entropy = secrets.randbits(strength)
+    data = int.to_bytes(entropy, strength//8, "big")
+    h = hashlib.sha256(data).hexdigest()
+    b = bin(entropy)[2:].zfill(strength) + bin(int(h, 16))[2:].zfill(256)[:strength//32]
+    words = []
+    for i in range(len(b)//11):
+        idx = int(b[i*11:(i + 1)*11], 2)
+        words.append(BIP39_WORDS[idx])
+    return words
 
 # Base58 Encoding
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -438,7 +448,7 @@ def main():
     elif selection == "3":
         show_eth_details()
     elif selection == "4":
-        words = [secrets.choice(BIP39_WORDS) for _ in range(24)]
+        words = generate_mnemonic()
         phrase = " ".join(words)
         show_bip39_details(phrase)
     elif selection == "5":
