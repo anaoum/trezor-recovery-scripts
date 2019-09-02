@@ -15,10 +15,8 @@ BIP39_WORDS = []
 for line in open("bip0039_wordlist_english.txt", "r"):
     BIP39_WORDS.append(line.strip("\n"))
 def mnemonic_to_seed(mnemonic, password=""):
-    mnemonic_norm = unicodedata.normalize("NFKD", mnemonic).lower()
-    for word in mnemonic_norm.split(" "):
-        assert word in BIP39_WORDS
-    mnemonic_norm = mnemonic_norm.encode("ascii")
+    assert verify_mnemonic(mnemonic)
+    mnemonic_norm = unicodedata.normalize("NFKD", mnemonic).lower().encode("ascii")
     password_norm = unicodedata.normalize("NFKD", password).encode("utf-8")
     return hashlib.pbkdf2_hmac("sha512", mnemonic_norm, b"mnemonic" + password_norm, 2048, 64)
 def generate_mnemonic(strength=256):
@@ -30,7 +28,29 @@ def generate_mnemonic(strength=256):
     for i in range(len(b)//11):
         idx = int(b[i*11:(i + 1)*11], 2)
         words.append(BIP39_WORDS[idx])
-    return words
+    mnemonic = " ".join(words)
+    assert verify_mnemonic(mnemonic)
+    return mnemonic
+def verify_mnemonic(mnemonic):
+    mnemonic_norm = unicodedata.normalize("NFKD", mnemonic).lower().split(" ")
+    if len(mnemonic_norm) not in [12, 15, 18, 21, 24]:
+        print("bad length")
+        return False
+    try:
+        idx = [bin(BIP39_WORDS.index(x))[2:].zfill(11) for x in mnemonic_norm]
+        b = "".join(idx)
+    except ValueError:
+        print("bad word")
+        return False
+    l = len(b)
+    d = b[:l//33*32]
+    h = b[-l//33:]
+    nd = bytes.fromhex(hex(int(d, 2))[2:].rstrip("L").zfill(l//33*8))
+    nh = bin(int(hashlib.sha256(nd).hexdigest(), 16))[2:].zfill(256)[:l//33]
+    if h != nh:
+        print("bad checksum")
+        return False
+    return True
 
 # Base58 Encoding
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -392,17 +412,10 @@ def main():
     def show_bip39_details(phrase=None):
         while not phrase:
             phrase = input("Please enter your 12 or 24 word recovery phrase: ").lower()
-            words = phrase.split(" ")
-            if len(words) != 12 and len(words) != 24:
+            if not verify_mnemonic(phrase):
+                print("Invalid phrase")
                 phrase = None
                 continue
-            is_valid = True
-            for word in words:
-                if word not in BIP39_WORDS:
-                    print("Invalid word in phrase: {}".format(word))
-                    is_valid = False
-            if not is_valid:
-                phrase = None
         password = input("Please enter the password that protects this recovery phrase (hit enter for no password): ")
         seed = mnemonic_to_seed(phrase, password)
         root_hwif = seed_to_hwif(seed, testnet=testnet)
@@ -448,9 +461,7 @@ def main():
     elif selection == "3":
         show_eth_details()
     elif selection == "4":
-        words = generate_mnemonic()
-        phrase = " ".join(words)
-        show_bip39_details(phrase)
+        show_bip39_details(generate_mnemonic())
     elif selection == "5":
         secret_exponent = secrets.randbits(256)
         prefix = b"\xef" if testnet else b"\x80"
