@@ -258,6 +258,18 @@ def hwif_to_eth_account(hwif):
     data = ser_256(public_key[0]) + ser_256(public_key[1])
     keyhash =  keccak.Keccak256(data).digest()
     return mixed_case_checksum(keyhash[-20:])
+# BCH cashaddr
+import cash_addr
+def hwif_to_p2pkh_cashaddr(hwif, compressed=True):
+    testnet, depth, parent_fingerprint, child_index, chain_code, secret_key, public_key = from_hwif(hwif)
+    if compressed:
+        data = ser_p(public_key)
+    else:
+        data = b"\x04" + ser_256(public_key[0]) + ser_256(public_key[1])
+    keyhash = hash160(data)
+    prefix = "bchtest" if testnet else "bitcoincash"
+    payload = b"\x00" + keyhash
+    return cash_addr.cashaddr_encode(prefix, payload)
 
 # Private keys
 def hwif_to_wif(hwif, compressed=True):
@@ -380,6 +392,28 @@ def wif_to_bech32(wif):
     keyhash = hash160(data)
     hrp = "tb" if testnet else "bc"
     return segwit_addr.encode(hrp, 0, keyhash)
+def wif_to_p2pkh_cashaddr(wif, compressed=None):
+    data = b58decode_check(wif)
+    prefix, data = data[0:1], data[1:]
+    testnet = prefix == b"\xef"
+    if not testnet:
+        assert prefix == b"\x80"
+    wif_compressed = len(data) == 33
+    if wif_compressed:
+        suffix, data = data[-1], data[:-1]
+        assert suffix == 1
+    if compressed is None:
+        compressed = wif_compressed
+    secret_exponent = parse_256(data)
+    public_pair = (ecdsa.generator_secp256k1*secret_exponent).pair()
+    if compressed:
+        data = ser_p(public_pair)
+    else:
+        data = b"\x04" + ser_256(public_pair[0]) + ser_256(public_pair[1])
+    keyhash = hash160(data)
+    prefix = "bchtest" if testnet else "bitcoincash"
+    payload = b"\x00" + keyhash
+    return cash_addr.cashaddr_encode(prefix, payload)
 
 def main():
     testnet = False
@@ -446,6 +480,8 @@ def main():
         print("Bitcoin P2SH-P2WPKH address:          {}".format(wif_to_p2wpkh(wif)))
         print("Bitcoin P2SH-P2WPKH redeem script:    {}".format(wif_to_p2wpkh_redeem_script(wif)))
         print("Bitcoin Bech32 address:               {}".format(wif_to_bech32(wif)))
+        print("BCH P2PKH cashaddr (compressed):      {}".format(wif_to_p2pkh_cashaddr(wif, compressed=True)))
+        print("BCH P2PKH cashaddr (uncompressed):    {}".format(wif_to_p2pkh_cashaddr(wif, compressed=False)))
     def show_eth_details(key=None):
         while not key:
             key = input("Enter the Ethereum private key: ")
